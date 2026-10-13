@@ -1,0 +1,5 @@
+*.log
+build-image.json
+result
+result-*
+.env

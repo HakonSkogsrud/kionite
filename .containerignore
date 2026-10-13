@@ -1,0 +1,9 @@
+.git
+.github
+home
+README.md
+*.log
+build-image.json
+result
+result-*
+.env
