@@ -75,8 +75,14 @@ not `sddm.service`.
 
 ## Building and publishing
 
-The builder uses a read-only deploy key for this private repository. After its
-initial clone, build from the exact checked-out revision:
+Clone the image repository on the builder:
+
+```sh
+git clone https://github.com/HakonSkogsrud/kionite.git ~/kionite
+```
+
+For a private repository, configure a read-only deploy key first. A public
+repository needs no GitHub credentials for pulls. Build from the checked-out revision:
 
 ```sh
 cd ~/kionite
