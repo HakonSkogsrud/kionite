@@ -24,29 +24,76 @@ Infrastructure plans and Ansible configuration belong in the separate
 ## Image and shell packages
 
 The image contains Tailscale, Syncthing, Microsoft VS Code, Emacs PGTK, Avahi,
-CUPS, Git, Zsh, OpenSSH client, man-page utilities, and Fedora's Nix packages.
+CUPS, Git, Zsh, GNU Stow, OpenSSH client, man-page utilities, and Fedora's Nix packages.
 Nix sees `/nix/store`; persistent `/var/nix` is bind-mounted onto `/nix` before
 package tmpfiles initialization and daemon startup. SELinux remains enforcing.
 
 Home Manager supplies eza, ripgrep, zoxide, fzf, fd, bat, lazygit, Neovim, uv,
 tmux, direnv/nix-direnv, zsh-autosuggestions, and JetBrains Mono Nerd Font.
-It manages `.zshrc`, `.tmux.conf`, and the lazygit configuration. The login shell
-is `/usr/bin/zsh`, provided by the host image. Syncthing's user service is enabled;
-lingering was not enabled. Tailscale is running but requires user authentication:
+Home Manager manages packages and session integration only. Personal dotfiles
+belong in [`.dotfiles`](https://github.com/HakonSkogsrud/.dotfiles) and are linked
+with Stow. See [the migration guide](docs/stow-migration.md) before activating the
+new configuration on a machine using the prototype's Home Manager dotfile links.
+The login shell is `/usr/bin/zsh`, supplied by the image. Nix GPU integration is
+disabled because these Nix packages are CLI tools. Inputs are pinned in
+`home/flake.lock`.
+
+## Desktop extensions and Flatpak
+
+The image builds [Smooth Swipe](https://github.com/cesp99/smooth-swipe) and
+[Klassy](https://github.com/paulmcauley/klassy) from pinned upstream commits in a
+separate build stage. Compiler/development packages are not copied into the final
+image. Klassy includes the Qt 6 application style, window decorations, settings,
+and global theme; its optional Qt 5 style is not built.
+
+Smooth Swipe uses KWin's private plugin ABI. Every image build recompiles it
+against that image's KWin headers. The build fails if installing development
+packages changes the checked KDE/Qt runtime versions. A future incompatible KWin
+API update may require updating the pinned Smooth Swipe source.
+
+After booting the image, choose Smooth Swipe under System Settings -> Desktop
+Effects -> Virtual Desktop Switching Animation. Choose Klassy under Colours &
+Themes -> Global Theme. Theme/effect selection stays in your personal KDE config.
+
+The RPM Firefox and its language packs are removed. Fedora's stable Flatpak
+remote and full Flathub are defined in `/usr/share/flatpak/remotes.d/`.
+The Fedora URL follows the [Fedora Developer Portal](https://developer.fedoraproject.org/deployment/flatpak/flatpak-usage.html). No Flatpak apps
+are installed automatically. Install Firefox, Obsidian, Brave, Collabora Office,
+and other Flatpak apps manually through Discover or `flatpak install`.
 
 ```sh
-sudo tailscale up
+flatpak remotes --system --show-details
+flatpak install flathub org.mozilla.firefox
 ```
 
-The shell configuration comes from
-<https://github.com/HakonSkogsrud/nixos>, revision
-`a13621f39485c3ea95a11846e3543bdc6bfa16b3`, with a builtin-cd fallback,
-Nix plugin-path substitution, Home Manager session variables, and a direnv hook.
-It uses the real Fedora home path `/var/home/haaksk` and `/usr/bin/zsh` in tmux.
-Nix GPU integration is disabled because the Nix environment currently contains
-CLI tools; the editors are host RPMs. Inputs are pinned in `home/flake.lock`.
+The apps you mentioned are available from Flathub:
 
-## Validated on 2026-10-13
+| App | Flatpak ID |
+|---|---|
+| [Obsidian](https://flathub.org/en/apps/md.obsidian.Obsidian) | `md.obsidian.Obsidian` |
+| [Brave](https://flathub.org/en/apps/com.brave.Browser) | `com.brave.Browser` |
+| [Collabora Office](https://flathub.org/en/apps/com.collaboraoffice.Office) | `com.collaboraoffice.Office` |
+
+Use `flatpak install flathub <ID>` for whichever apps you choose.
+
+Your existing Firefox profile is not deleted by the image build; the Flatpak uses
+a different profile location, so migrate bookmarks/settings separately if needed.
+
+## Desktop extension build validation on 2026-10-13
+
+The `44-desktop-extensions` image was built on the AlmaLinux builder. Both
+extensions compiled from the pinned commits, and their plugins/settings binary
+resolved all shared-library dependencies in the runtime image. RPM Firefox,
+Firefox language packs, CMake, and the C++ compiler are absent. Fresh-container
+checks initialized Fedora and full Flathub with no Flatpak apps installed.
+Bootc lint passed 14 checks with 1 skipped and no warnings on the assembled image.
+The package-only Home Manager configuration also built successfully.
+
+This revision has not been deployed to the desktop VM. Theme appearance and
+actual touchpad gestures still need graphical testing after deployment. Existing
+Home Manager activation and dotfiles on the VM have not been changed.
+
+## Prototype validation on 2026-10-13
 
 - Built the Kinoite image on AlmaLinux and published it to the homelab registry.
 - Bootc lint: 14 checks passed, 1 skipped, no warnings after runtime/cache cleanup.
@@ -135,12 +182,13 @@ profiles, or the database. Back up user configuration separately.
 To update the shell environment on the desktop:
 
 ```sh
-cd ~/kinoite-shell
+cd ~/kionite/home
 nix run .#homeConfigurations.haaksk.activationPackage
 ```
 
 Inspect existing dotfile conflicts and back up files before activation on another
-machine. No existing managed dotfiles were present on this disposable VM.
+machine. The prototype used Home Manager links; follow the Stow migration guide before
+activating the package-only configuration.
 
 ## Migration fix and saved state
 
