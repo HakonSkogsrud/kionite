@@ -268,7 +268,7 @@ Run `scripts/pipeline.sh` as `kionite-build`. It locks the account's pipeline,
 fetches trusted `main`, archives the exact commit into a unique workspace, builds
 without stale RPM caching, runs the disk-backed smoke gate, then publishes the
 same image to `ghcr.io/hakonskogsrud/kionite` and promotes its verified digest to
-`stable`. The scheduled service uses the same entry point.
+`stable`. The scheduled user service uses the same entry point.
 
 Release tags include Fedora version, UTC timestamp, Git SHA and a random run ID.
 Release tags are never overwritten. The script records image/package/base/source
@@ -297,7 +297,8 @@ releases. Monitor free disk space and deliberately review registry retention lat
 
 Ansible owns `kionite-build.service` and a 03:00 Europe/Oslo timer with up to 10
 minutes jitter and missed-run catch-up. The timer is enabled only after a successful
-manual publication. Inspect it with `systemctl list-timers kionite-build.timer`;
-run manually with `sudo systemctl start kionite-build.service`, then inspect
-`sudo journalctl -u kionite-build.service`. The builder needs connectivity when
+manual publication. As `kionite-build`, inspect it with `systemctl --user list-timers kionite-build.timer`;
+run manually with `systemctl --user start kionite-build.service`, then inspect
+`journalctl --user -u kionite-build.service`. Lingering keeps its user manager
+available after logout and reboot. The builder needs connectivity when
 fetching/publishing. Failures leave the prior stable release unchanged.
