@@ -302,3 +302,14 @@ run manually with `systemctl --user start kionite-build.service`, then inspect
 `journalctl --user -u kionite-build.service`. Lingering keeps its user manager
 available after logout and reboot. The builder needs connectivity when
 fetching/publishing. Failures leave the prior stable release unchanged.
+
+## Basic verification gate
+
+The release gate checks boot reaches running/degraded state, DNS resolves
+`ghcr.io`, Klassy and Smooth Swipe files exist, and KWin plus Plasma start.
+An unattended guest uses a temporary virtual Wayland session. Nix builds,
+SELinux enforcement, printing and a zero-failed-unit requirement are no longer
+release gates. Real graphics and gesture behavior remain manual checks.
+The previous first scheduled run timed out in the bcvk installer before any
+guest checks ran; simplifying the checks does not fix that startup failure.
+Missing libvirt domains are now treated as already cleaned up.

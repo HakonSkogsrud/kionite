@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Installed-system release gate; graphics and update/rollback are manual checks.
+# Basic installed-system release gate; real plugin behavior remains manual.
 set -euo pipefail
 image_ref="${1:?Usage: scripts/test-vm.sh LOCAL_IMAGE_REFERENCE}"
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 test_name="kionite-smoke-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 bcvk_command="${BCVK_BIN:-/usr/local/bin/bcvk}"
 connection=qemu:///session
-nixpkgs_rev=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["nodes"]["nixpkgs"]["locked"]["rev"])' "$repo_dir/home/flake.lock")
 # The pipeline supplies a unique named build tag and holds its build lock.
 # bcvk install needs a name rather than a bare image ID. Check for tag changes.
 test_image="$image_ref"
@@ -22,7 +21,7 @@ cleanup() {
     trap - EXIT
     if timeout 30 "$bcvk_command" libvirt ssh --connect "$connection" "$test_name" \
         -- journalctl -b --no-pager > "$log_dir/guest-journal.log" 2>&1; then :; fi
-    if ! timeout 60 "$bcvk_command" libvirt rm --connect "$connection" --force "$test_name" \
+    if virsh -c "$connection" dominfo "$test_name" >/dev/null 2>&1 && ! timeout 60 "$bcvk_command" libvirt rm --connect "$connection" --force "$test_name" \
         > "$log_dir/cleanup.log" 2>&1; then
         echo "Cleanup failed; inspect $test_name and $log_dir/cleanup.log" >&2
         result=1
@@ -40,7 +39,7 @@ timeout 1800 "$bcvk_command" libvirt run --connect "$connection" --name "$test_n
     "$test_image" > "$log_dir/launch.log" 2>&1
 # bcvk's command mode does not forward stdin; transport trusted test source as base64.
 smoke_payload=$(base64 --wrap=0 "$repo_dir/tests/boot-smoke.sh")
-smoke_command="printf '%s' '$smoke_payload' | base64 --decode | bash -s -- '$nixpkgs_rev'"
+smoke_command="printf '%s' '$smoke_payload' | base64 --decode | bash -s"
 timeout 900 "$bcvk_command" libvirt ssh --connect "$connection" "$test_name" \
     "$smoke_command" > "$log_dir/smoke.log" 2>&1
 [[ "$(podman image inspect --format '{{.Id}}' "$test_image")" == "$source_image_id" ]]
