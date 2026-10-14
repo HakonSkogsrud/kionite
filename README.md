@@ -313,3 +313,12 @@ release gates. Real graphics and gesture behavior remain manual checks.
 The previous first scheduled run timed out in the bcvk installer before any
 guest checks ran; simplifying the checks does not fix that startup failure.
 Missing libvirt domains are now treated as already cleaned up.
+
+### Installer startup permission fix
+
+The pipeline inherited umask 077 into image construction. The resulting OCI
+image had mode 0700 on `/usr` and `/usr/lib`, causing installer guest service
+execution to fail with Permission denied. The deployed OSTree VM had 0755
+permissions, explaining why manual deployment worked. Build and bcvk subprocesses
+now use umask 022; final image directory permissions are explicitly normalized.
+Pipeline metadata and registry credentials retain their restrictive permissions.

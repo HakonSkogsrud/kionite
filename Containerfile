@@ -31,7 +31,8 @@ RUN bash /tmp/build-desktop-extensions.sh
 FROM runtime
 COPY --from=desktop-build /out/usr/ /usr/
 COPY flatpak/ /usr/share/flatpak/remotes.d/
-RUN bootc container lint
+RUN chmod 0755 /usr /usr/lib /usr/lib64 /usr/share && \
+    bootc container lint
 
 ARG IMAGE_VERSION=44-desktop-extensions
 ARG IMAGE_REVISION=unknown

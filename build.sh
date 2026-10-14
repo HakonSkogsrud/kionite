@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Buildah-created image directories must be traversable by service users.
+umask 022
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 image_ref="${IMAGE_REF:-10.0.0.139:5000/my-kinoite:44-candidate}"
 image_version="${IMAGE_VERSION:-44-$(date -u +%Y%m%dT%H%M%SZ)}"

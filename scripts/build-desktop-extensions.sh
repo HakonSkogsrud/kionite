@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 # The final image must have the same KDE/Qt ABI as the headers used here.
 abi_packages=(kwin kdecoration qt6-qtbase qt6-qtdeclarative qt6-qtsvg

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Basic installed-system release gate; real plugin behavior remains manual.
 set -euo pipefail
+# bcvk injects files used by unprivileged guest services.
+umask 022
 image_ref="${1:?Usage: scripts/test-vm.sh LOCAL_IMAGE_REFERENCE}"
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 test_name="kionite-smoke-$(date -u +%Y%m%dT%H%M%SZ)-$$"
