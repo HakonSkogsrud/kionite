@@ -120,6 +120,45 @@ not `sddm.service`.
 | `44-first-boot` | `sha256:ef7d5755ce43d3f99988119d09c42208660322ca6f502818f73433a7249a9554` |
 | `44-experiment-2` | `sha256:cef8e4b2abe00dd6c966215cac67c7de3d8980217196e1626a9902fc77cd586d` |
 
+## Ansible builder and installed-system tests
+
+The permanent builder work lives in `serversetup/roles/kionite_builder` and the
+separate provisioning/configuration playbooks. VM 103 now has 4 vCPUs, 12 GiB RAM
+and a 150 GiB disk. The dedicated account is `kionite-build`, with source/state
+under `/var/lib/kionite-builder`. It uses rootless Podman and session-owned libvirt.
+The original rootful registry/store remain available during migration.
+
+For that account, use explicit rootless mode:
+
+```sh
+PODMAN_ROOTLESS=1 IMAGE_REF=localhost/kionite:test bash build.sh
+scripts/test-vm.sh localhost/kionite:test
+```
+
+The test helper uses pinned `/usr/local/bin/bcvk` 0.21; override `BCVK_BIN` only
+when deliberately testing another version. Alma sudo's PATH can select EPEL's
+older 0.10 binary otherwise. Ansible installs the newer binary from an immutable
+upstream OCI artifact digest. Its installer startup fixes are needed for this image.
+
+The helper creates an installed Btrfs VM in `qemu:///session`, runs boot/service,
+SELinux, Nix and dependency checks, retains logs, and removes the test domain.
+It requires bcvk, QEMU/virtiofsd, session libvirt, UEFI firmware and KVM access.
+The pipeline must supply a unique named local build reference. The helper serializes
+VM tests and verifies the source tag did not change during the run.
+UEFI Secure Boot and TPM are disabled for this initial harness.
+
+On 2026-10-14, a full rootless build and the installed-system smoke helper passed.
+The guest had SELinux enforcing and zero failed system units. CUPS configuration,
+package/plugin dependencies, Flatpak remotes, a cached Nix package and an ordinary
+user's local sandboxed Nix derivation passed. The helper collected logs and removed
+the VM successfully. Ansible repeat runs changed zero, including publisher auth.
+The token remains outside this repository and no GHCR release has been published.
+
+Ephemeral mode remains useful for quick experiments but adds `selinux=0` and
+temporary `/var`, so it cannot pass enforcing/persistence acceptance. Desktop
+plugin loading and actual image update/rollback remain separate required tests
+before automated stable promotion. No GHCR publishing or timers are enabled here.
+
 ## Building and publishing
 
 Clone the image repository on the builder:

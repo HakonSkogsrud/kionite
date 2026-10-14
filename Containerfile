@@ -34,5 +34,10 @@ COPY flatpak/ /usr/share/flatpak/remotes.d/
 RUN bootc container lint
 
 ARG IMAGE_VERSION=44-desktop-extensions
-LABEL org.opencontainers.image.title="Haaksk Kinoite" \
+ARG IMAGE_REVISION=unknown
+ARG IMAGE_CREATED=unknown
+LABEL org.opencontainers.image.source="https://github.com/HakonSkogsrud/kionite" \
+      org.opencontainers.image.revision="${IMAGE_REVISION}" \
+      org.opencontainers.image.created="${IMAGE_CREATED}" \
+      org.opencontainers.image.title="Haaksk Kinoite" \
       org.opencontainers.image.version="${IMAGE_VERSION}"
