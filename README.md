@@ -156,8 +156,8 @@ The token remains outside this repository and no GHCR release has been published
 
 Ephemeral mode remains useful for quick experiments but adds `selinux=0` and
 temporary `/var`, so it cannot pass enforcing/persistence acceptance. Desktop
-plugin loading and actual image update/rollback remain separate required tests
-before automated stable promotion. No GHCR publishing or timers are enabled here.
+plugin behavior and actual image update/rollback are manual checks on the disposable
+desktop before moving the laptop; they are not automated release gates. GHCR publication and nightly scheduling are handled by the pipeline below.
 
 ## Building and publishing
 
@@ -261,3 +261,43 @@ Fedora's actual Nix tmpfiles, daemon/socket, profile, and sysusers definitions w
 inspected from the installed RPM layer. Additional tmpfiles rules recreate the
 store directories hidden by the bind mount. Build-user UID/GID stability must be
 rechecked when changing the base or package set.
+
+## Nightly pipeline
+
+Run `scripts/pipeline.sh` as `kionite-build`. It locks the account's pipeline,
+fetches trusted `main`, archives the exact commit into a unique workspace, builds
+without stale RPM caching, runs the disk-backed smoke gate, then publishes the
+same image to `ghcr.io/hakonskogsrud/kionite` and promotes its verified digest to
+`stable`. The scheduled service uses the same entry point.
+
+Release tags include Fedora version, UTC timestamp, Git SHA and a random run ID.
+Release tags are never overwritten. The script records image/package/base/source
+metadata, registry digest, VM logs and a small status report. Graphical behavior,
+physical gestures and a real update/rollback are manual checks before laptop use.
+No desktop updates or reboots are scheduled by these scripts.
+
+The first GHCR package defaults to private. Make it public in Package settings;
+promotion waits for anonymous digest access. Resume the exact already-tested image
+without rebuilding:
+
+```sh
+scripts/pipeline.sh --resume <build-id>
+```
+
+Credentials live in `$HOME/.config/containers/auth.json`, supplied by Ansible from
+Vault; publication uses HTTPS and that explicit auth file. No token is embedded in
+image layers or the repository. A completed pipeline writes `last-success.json`;
+`scripts/check-status.sh` fails for a failed latest run or success older than 48h.
+
+The pipeline recovers stale bcvk resources owned by this dedicated account, prunes
+unreferenced VM base disks and retains two pipeline image tags locally. Workspaces
+and large logs are retained for 30 days; release metadata and GHCR recovery tags
+are retained. It does not prune unrelated prototype image tags or delete GHCR
+releases. Monitor free disk space and deliberately review registry retention later.
+
+Ansible owns `kionite-build.service` and a 03:00 Europe/Oslo timer with up to 10
+minutes jitter and missed-run catch-up. The timer is enabled only after a successful
+manual publication. Inspect it with `systemctl list-timers kionite-build.timer`;
+run manually with `sudo systemctl start kionite-build.service`, then inspect
+`sudo journalctl -u kionite-build.service`. The builder needs connectivity when
+fetching/publishing. Failures leave the prior stable release unchanged.

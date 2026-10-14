@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Initial installed-system smoke test. Graphical/plugin and update tests follow.
+# Installed-system release gate; graphics and update/rollback are manual checks.
 set -euo pipefail
 image_ref="${1:?Usage: scripts/test-vm.sh LOCAL_IMAGE_REFERENCE}"
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
