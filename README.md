@@ -322,3 +322,11 @@ execution to fail with Permission denied. The deployed OSTree VM had 0755
 permissions, explaining why manual deployment worked. Build and bcvk subprocesses
 now use umask 022; final image directory permissions are explicitly normalized.
 Pipeline metadata and registry credentials retain their restrictive permissions.
+
+### Success monitoring
+
+Ansible can install a mode-0600 monitor environment file from Vault.
+`KIONITE_SUCCESS_PUSH_URL` is called only after successful verified publication.
+Failed runs send no success heartbeat. Kuma notification failure logs a warning
+without reverting publication. Configure the push monitor interval to cover the
+24-hour schedule, jitter, and build duration (for example 26 hours).

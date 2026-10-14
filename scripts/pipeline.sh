@@ -53,6 +53,7 @@ finish() {
         report success
         if [[ -f "$run_dir/published-reference" ]]; then
             cp "$run_dir/status.json" "$state_dir/last-success.json"
+            python3 "$repo_dir/scripts/notify-success.py" || echo "Warning: publication succeeded but Kuma notification failed"
         fi
     elif [[ "$result" == 75 ]]; then
         report skipped
