@@ -330,3 +330,28 @@ Ansible can install a mode-0600 monitor environment file from Vault.
 Failed runs send no success heartbeat. Kuma notification failure logs a warning
 without reverting publication. Configure the push monitor interval to cover the
 24-hour schedule, jitter, and build duration (for example 26 hours).
+
+### Registry retention
+
+After each successful publication, the builder retains five managed release
+versions in GHCR, including the version tagged `stable`. Older managed versions
+are deleted through GitHub's package API. Custom recovery tags and untagged
+manifests are left untouched. Stable is always protected, even after rollback
+to an older build. Cleanup failure warns without failing or reverting publication.
+
+The existing classic publishing PAT also needs `delete:packages` (package read
+access comes with `write:packages`). Without it, versions beyond the five-build
+limit remain and cleanup logs a warning. Inspect the plan without deleting with:
+
+```sh
+python3 scripts/registry-retention.py --keep 5
+```
+
+Add `--apply` to execute cleanup. Image releases are identified by the pipeline's
+unique dated release tags; sorting uses release time rather than stable-tag
+updates. The current image counts toward the five retained builds.
+
+Local storage remains independent of GHCR: keep the latest two pipeline image
+references, prune untagged intermediate images before builds and after successful
+tests, remove test/base disks, and expire logs/workspaces after 30 days. Tagged
+prototype images and the root-owned temporary LAN registry remain untouched.

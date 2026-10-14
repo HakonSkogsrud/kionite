@@ -21,3 +21,6 @@ if [[ -z $(virsh -c qemu:///session list --all --name) ]]; then
     find "$HOME/.local/share/libvirt/images" -maxdepth 1 -type f \
         -name 'bootc-base-*.tmp.qcow2' -delete
 fi
+
+# Prune untagged intermediate layers only; preserve all retained/tagged images.
+podman image prune --force

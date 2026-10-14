@@ -18,3 +18,6 @@ for ref in refs:
 PY
 # Release records stay small and are retained. Bound large logs/workspaces to 30 days.
 find "$state_dir/work" "$state_dir/logs" -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf -- {} +
+
+# Prune untagged intermediate layers only; preserve all retained/tagged images.
+podman image prune --force
