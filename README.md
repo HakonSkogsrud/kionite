@@ -5,21 +5,66 @@ Source: https://github.com/HakonSkogsrud/kionite
 
 ## Current setup
 
-- Builder: `haaksk@10.0.0.139`, AlmaLinux 10.2, x86_64, 100 GiB disk,
-  4 GiB RAM, and 4 GiB temporary swap.
-- Test desktop: `haaksk@10.0.0.59`, now running the custom Fedora 44 Kinoite image.
-- Registry: `10.0.0.139:5000`, unauthenticated HTTP on the trusted LAN.
-- Update reference: `10.0.0.139:5000/my-kinoite:44-candidate`.
-- Image definition and shell environment: this directory; remote copies are at
-  `~/kionite` on the builder and `~/kinoite-shell` on the test desktop.
+- Base: Fedora Kinoite 44 (KDE Plasma).
+- Builder: VM 103 at `10.0.0.139`, AlmaLinux 10.2, 4 vCPUs, 12 GiB RAM,
+  150 GiB disk; dedicated unprivileged account `kionite-build`.
+- Source checkout: `/var/lib/kionite-builder/source`; logs and release records
+  live under `/var/lib/kionite-builder`.
+- Public image: `ghcr.io/hakonskogsrud/kionite:stable` (anonymous HTTPS pulls).
+- Schedule: nightly around 03:00–03:10 Europe/Oslo, enabled through Ansible.
+- Flow: fetch main → build → installed VM checks → GHCR → promote stable →
+  retain five registry builds → Kuma success heartbeat.
+- Disposable desktop: `10.0.0.59`. The old LAN registry at `10.0.0.139:5000`
+  is retained only for prototype/recovery use.
 
-The registry uses the Podman container `kinoite-registry`, persistent data at
-`/var/lib/kinoite-registry`, and `podman-restart.service` for restart after reboot.
-Temporary swap at `/var/swap-kinoite` is not configured in fstab.
-Permanent hosting still needs HTTPS, authentication, signing, and scheduled builds.
+Infrastructure configuration lives in
+[serversetup](https://github.com/HakonSkogsrud/serversetup), including the
+`kionite_builder` role. Container signing/client signature enforcement is not
+configured yet. Clients currently update manually; the builder does not reboot them.
 
-Infrastructure plans and Ansible configuration belong in the separate
-`HakonSkogsrud/serversetup` repository.
+## Base OS, Nix and personal configuration
+
+| Layer | Contents | Apply changes |
+| --- | --- | --- |
+| OS image | Kinoite/KDE, drivers, host services, VS Code, Emacs, desktop plugins and Nix itself | Edit the Containerfile, publish a tested image, then `sudo bootc upgrade` and reboot |
+| Nix user environment | CLI tools, compilers, language servers and shell utilities | Edit `home/home.nix` and activate Home Manager; no reboot |
+| Nix project environment | Project-specific development tools in a project's `flake.nix` | `nix develop`, or direnv with `use flake` |
+| Flatpak | Manually selected desktop apps such as Firefox | Discover or `flatpak install` / `flatpak update` |
+| Personal dotfiles | Shell/editor configuration in a separate dotfiles repository | GNU Stow; independent of Home Manager |
+
+Home Manager manages packages and session integration; it does not own personal
+Zsh/tmux/editor dotfiles. Nix's logical store remains `/nix/store`, backed by
+persistent `/var/nix`. Home directories, Nix profiles/store and Flatpak state
+survive OS updates. OS rollback does not roll them back; back them up separately.
+
+For VS Code, tools must be on its inherited PATH. Launch `code .` from the
+configured shell or project environment; a running VS Code instance may need to
+be fully exited first. Extensions can require explicit language-server paths.
+Direnv/nix-direnv and the Zsh hook are optional user configuration, not automatically
+configured by this image; put the shell hook in your Stow-managed `.zshrc`.
+
+## Install and update
+
+Install stock Fedora Kinoite 44 from USB, enabling disk encryption in its installer
+if desired. Rebasing preserves the installation's encryption and partition layout.
+Then keep the original deployment and switch to this image:
+
+```sh
+sudo ostree admin pin 0
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/hakonskogsrud/kionite:stable
+sudo reboot
+```
+
+On the custom image:
+
+```sh
+sudo bootc status
+sudo bootc upgrade
+sudo reboot
+```
+
+To return to the previous OS deployment, use `sudo bootc rollback` then reboot,
+or choose a previous deployment in the boot menu if normal boot fails.
 
 ## Image and shell packages
 
@@ -140,8 +185,8 @@ when deliberately testing another version. Alma sudo's PATH can select EPEL's
 older 0.10 binary otherwise. Ansible installs the newer binary from an immutable
 upstream OCI artifact digest. Its installer startup fixes are needed for this image.
 
-The helper creates an installed Btrfs VM in `qemu:///session`, runs boot/service,
-SELinux, Nix and dependency checks, retains logs, and removes the test domain.
+The helper creates an installed Btrfs VM in `qemu:///session`, checks boot, DNS,
+KWin/Plasma startup and plugin files, retains logs, and removes the test domain.
 It requires bcvk, QEMU/virtiofsd, session libvirt, UEFI firmware and KVM access.
 The pipeline must supply a unique named local build reference. The helper serializes
 VM tests and verifies the source tag did not change during the run.
@@ -152,7 +197,8 @@ The guest had SELinux enforcing and zero failed system units. CUPS configuration
 package/plugin dependencies, Flatpak remotes, a cached Nix package and an ordinary
 user's local sandboxed Nix derivation passed. The helper collected logs and removed
 the VM successfully. Ansible repeat runs changed zero, including publisher auth.
-The token remains outside this repository and no GHCR release has been published.
+The token remains outside this repository. The later complete pipeline also passed
+and published the public GHCR release; its current gate is the basic suite below.
 
 Ephemeral mode remains useful for quick experiments but adds `selinux=0` and
 temporary `/var`, so it cannot pass enforcing/persistence acceptance. Desktop
@@ -222,7 +268,8 @@ To update the shell environment on the desktop:
 
 ```sh
 cd ~/kionite/home
-nix run .#homeConfigurations.haaksk.activationPackage
+nix build .#homeConfigurations.haaksk.activationPackage
+./result/activate
 ```
 
 Inspect existing dotfile conflicts and back up files before activation on another
@@ -291,9 +338,9 @@ image layers or the repository. A completed pipeline writes `last-success.json`;
 
 The pipeline recovers stale bcvk resources owned by this dedicated account, prunes
 unreferenced VM base disks and retains two pipeline image tags locally. Workspaces
-and large logs are retained for 30 days; release metadata and GHCR recovery tags
-are retained. It does not prune unrelated prototype image tags or delete GHCR
-releases. Monitor free disk space and deliberately review registry retention later.
+and large logs are retained for 30 days; small release metadata is retained.
+Untagged intermediate image layers are pruned. GHCR keeps five managed builds,
+including stable; custom recovery tags and unrelated prototype tags are preserved.
 
 Ansible owns `kionite-build.service` and a 03:00 Europe/Oslo timer with up to 10
 minutes jitter and missed-run catch-up. The timer is enabled only after a successful
@@ -301,7 +348,8 @@ manual publication. As `kionite-build`, inspect it with `systemctl --user list-t
 run manually with `systemctl --user start kionite-build.service`, then inspect
 `journalctl --user -u kionite-build.service`. Lingering keeps its user manager
 available after logout and reboot. The builder needs connectivity when
-fetching/publishing. Failures leave the prior stable release unchanged.
+fetching/publishing. Build/test failures leave the prior stable release unchanged.
+Retention/heartbeat delivery failures warn separately after publication.
 
 ## Basic verification gate
 
