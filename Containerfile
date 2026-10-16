@@ -12,7 +12,7 @@ RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc && \
       krdp krfb kdenetwork-filesharing samba-usershares audiocd-kio \
       kde-inotify-survey kde-connect kfind kde-partitionmanager plasma-vault \
       kamera kf6-baloo-file kdeplasma-addons && \
-    rpm -q dolphin konsole ark spectacle plasma-discover systemsettings \
+    rpm -q dolphin konsole ark spectacle plasma-discover plasma-systemsettings \
       plasma-systemmonitor kinfocenter kwalletmanager5 pam-kwallet \
       plasma-nm bluedevil plasma-pa kscreen kscreenlocker polkit-kde \
       kdegraphics-thumbnailers ffmpegthumbs plasma-print-manager \
