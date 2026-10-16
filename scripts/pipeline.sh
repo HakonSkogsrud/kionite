@@ -77,7 +77,7 @@ stage=recovery; report running
 bash "$repo_dir/scripts/recover-tests.sh" "$log_dir/recovery"
 stage=build; report running
 cd "$repo_dir"
-PODMAN_ROOTLESS=1 PUBLISH=0 IMAGE_REF="$image_ref" IMAGE_VERSION="$build_id" \
+IMAGE_REF="$image_ref" IMAGE_VERSION="$build_id" \
     IMAGE_REVISION="$source_sha" timeout 7200 bash build.sh
 cp build-image.json "$run_dir/image.json"
 base_digest=$(skopeo inspect --format '{{.Digest}}' containers-storage:quay.io/fedora-ostree-desktops/kinoite:44)

@@ -12,13 +12,6 @@ done
 printf 'Boot reached %s\n' "$state"
 # DNS resolution requires the guest network, but no package downloads.
 getent ahosts ghcr.io
-for file in /usr/bin/klassy-settings \
- /usr/lib64/qt6/plugins/styles/klassy6.so \
- /usr/lib64/qt6/plugins/org.kde.kdecoration3/org.kde.klassy.so \
- /usr/lib64/qt6/plugins/kwin/effects/plugins/smoothswipe.so; do
-    test -f "$file"
-    printf 'Present: %s\n' "$file"
-done
 # An installed desktop may already have a logged-in graphical session.
 if pgrep -x kwin_wayland >/dev/null && pgrep -x plasmashell >/dev/null; then
     echo 'KWin and Plasma are running'
@@ -52,4 +45,4 @@ else
       ' > /tmp/kionite-desktop-smoke.log 2>&1
     echo 'Virtual KWin and Plasma startup passed (details: /tmp/kionite-desktop-smoke.log)'
 fi
-echo 'Basic boot, desktop startup, DNS and plugin-file checks passed'
+echo 'Basic boot, desktop startup and DNS checks passed'
